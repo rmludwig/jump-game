@@ -3,12 +3,20 @@ var Enemy = function(name, speed, stack) {
     // Variables applied to each of our instances go here,
     // we've provided one for you to get started
 
+    // Names for fun and image control
+    this.name = name;
+
     // The image/sprite for our enemies, this uses
     // a helper we've provided to easily load images
-    this.sprite = 'images/enemy-bug.png';
-
-    // Names for fun
-    this.name = name;
+    if (this.name === "Steve") {
+        this.sprite = 'images/enemy-bug-red.png';
+    }
+    else if (this.name === "Vicky") {
+        this.sprite = 'images/enemy-bug-green.png';
+    }
+    else {
+        this.sprite = 'images/enemy-bug.png';
+    }
 
     // Speed variable for this Enemy
     this.speed = speed;
@@ -40,18 +48,9 @@ Enemy.prototype.update = function(dt) {
         this.x = xStart;
         this.laneSelection();
     }
-//
-//    // Update location for collision detection. Because the bugs 
-//    // run off screen need to set max loc value. The number of columns 
-//    // in this lane or 'laneLocation' = (x + 'image offset') / 'columnWidth'
-//    var laneLocation = Math.floor((this.x + 80) / 101);
-//    if (laneLocation < 5) {
-//        this.loc = this.base + laneLocation;
-//    }
 
     // DEBUG logging level 2 (verbose)
     if(debug > 1){console.log("calling enemy update x="+this.x+" y="+this.y)}; 
-//+" loc="+this.loc)};
 }
 
 // When instantiated, and when at end of row a new random lane
@@ -63,8 +62,6 @@ Enemy.prototype.laneSelection = function(lane) {
     // New y is ('lane number' * 'rowHeight') - 'height adjustment' + ('stack adjustment')
     this.y = (this.lane * rowHeight) - 35 + (this.stack * stackHeight);
     
-//    // Set base location for collision detection ('lane' * 5[rows]) + 5 [water]
-//    this.base = (this.lane * 5);
     // DEBUG level 1
     if(debug > 0){console.log("Enemy "+this.name+" is now in lane "+this.lane)};
 }
@@ -88,36 +85,77 @@ var Player = function(loc){
     // Set the initial coordinates of x and y based on locaiton
     this.moveTo(loc);
 
-    this.message = "Run to WATER";
-
-    this.score = "0";
+    // Initial game flow values
+    this.message = "Jump in WATER";
+    this.score = 0;
+    this.level = 1;
+    this.lives = 3
 
     // log instatiation
     console.log("Welcoming a new player to the game.");
 };
 
+// Update player and handle mechanics of collisions, lives
+// and difficulty. 
 Player.prototype.update = function(){
-    // Did the player win?
-    if (this.loc < 5) {
-        this.loc = 27;
-        this.moveTo(this.loc);
-        this.message = "YOU WON!";
-        this.score++;
-        console.log("Player won!!!");
-    }
+    // Collision detection
     // Is there a bug on you?
     allEnemies.forEach(function(enemy) {
         //if (enemy.loc === player.loc || ((enemy.loc - 1) === player.loc && enemy.x < (player.x + 80))) {
         if (enemy.lane === player.row && (enemy.x + 78) > player.x && enemy.x < (player.x + 80)) {
+            // Log the collision
             console.log("THE BUG "+enemy.name+" GOT THE PLAYER at loc="+player.loc+"!!!");
-            player.loc = 27;
-            player.moveTo(player.loc);
-            player.message = enemy.name+" ATE YOU!!";
-            player.score = 0;
-            freeze = 1;
             
+            // Put player out of bounds, then next move will bring them to start position
+            player.loc = 32;
+            
+            // decrease lives and manage game over
+            player.lives--;
+            if (player.lives < 0) {
+                player.lives = 0
+                player.message = "GAME OVER";
+            }
+            else {
+                player.message = "Try again";
+            }
+            
+            // Pause game
+            freeze = 1;
         }
     });
+
+    // Did the player win?
+    if (this.loc < 5) {
+        this.loc = 27;
+        this.moveTo(this.loc);
+        this.score++;
+        this.level++;
+        this.message = "Level "+this.level;
+        console.log("Player GOAL!!!");
+
+        // Difficulty increased based on player level
+        if (this.level === 5) {
+            allEnemies.push(micky,nicky);
+            console.log("Difficulty 2");
+        }
+        else if (this.level === 10) {
+            sticky.speed = sticky.speed + 5;
+            allEnemies.push(ricky);
+            console.log("Difficulty 2");
+        }
+        else if (this.level === 15) {
+            nicky.speed = nicky.speed + 5;
+            allEnemies.push(picky);
+            console.log("Difficulty 4");
+        }
+        // Boss level
+        else if (this.level === 20) {
+            picky.speed = picky.speed + 5;
+            allEnemies.push(steve);
+            console.log("Difficulty BOSS LEVEL");
+        }
+    }
+
 };
 
 
@@ -131,21 +169,27 @@ Player.prototype.moveTo = function(loc){
 
     if(debug > 0){console.log("For player moveTo changed values to row="+this.row+" loc="+this.loc+" x="+this.x+" y="+this.y)};
 };
+// Along with play render also render player messages.
 Player.prototype.render = function(){
     // Render the image on the canvas
     ctx.drawImage(Resources.get(this.sprite), this.x, this.y);
 
-    // Render the player message on the canvas
+    // Render the player score and lives always
     ctx.strokeStyle = "#000";
     ctx.fillStyle = "#FFF";
     ctx.font = "bold 10pt Comic Sans MS";
-    ctx.fillText("Score:"+this.score, 40, 70);
+    ctx.textAlign = "left";
+    ctx.fillText("Score:"+this.score, 10, 70);
+    ctx.fillText("Lives: "+this.lives, 10, 90);
 
-    ctx.font = "bold 36pt Comic Sans MS";
-    //ctx.lineWidth = "3";
-    ctx.textAlign = "center";
-    ctx.fillText(this.message, 250, 445);
-    ctx.strokeText(this.message, 250, 445);
+    // Render the player message on the canvas as needed
+    if (this.message.match(/\w/)) {
+        ctx.font = "bold 36pt Comic Sans MS";
+        ctx.lineWidth = "2";
+        ctx.textAlign = "center";
+        ctx.fillText(this.message, 250, 445);
+        ctx.strokeText(this.message, 250, 445);
+    }
 
     // DEBUG logging level 2 or higher
     if(debug > 1){console.log("Calling player render")};
@@ -153,6 +197,22 @@ Player.prototype.render = function(){
 Player.prototype.handleInput = function(move){
     // Unfreeze the game on player input.
     freeze = 0;
+
+    // Start new game if needed. Or if they cancel leave
+    // paused. This would be better if not using confirm
+    // dialogue. But for now it functions as needed. Maybe
+    // for fun later I will create a custom in game dialogue.
+    if (player.message === "GAME OVER") {
+        player.score = 0;
+        player.level = 1;
+        var newGame = confirm("Do you want to start a new game?");
+        if (newGame !== true) {
+            freeze = 1;
+            return;
+        }
+    }
+
+
     // Move in requested direction if not moving out of bounds
     if (move === "up" && this.loc > 4) {
         this.loc = this.loc - 5;
@@ -166,6 +226,10 @@ Player.prototype.handleInput = function(move){
     else if (move === "right" && (this.loc % 5 !== 4)) {
         this.loc = this.loc + 1;
     }
+    // out of bounds recovery
+    if (this.loc > 29 || this.loc < 0) {
+        this.loc = 27;
+    }
     this.moveTo(this.loc);
 
     // Reset message to blank
@@ -178,36 +242,29 @@ Player.prototype.handleInput = function(move){
 
 // Configuration parameters asigned as variables
 var speedMultiple = 20;
-var stackHeight = 4;
+var stackHeight = 3;
 var rowHeight = 83
 var freeze = 0;
 var debug = 0;
 var xStart = -80;
 var xEnd = 650;
 
-
-
-
 // Now instantiate your objects.
 // Place all enemy objects in an array called allEnemies
 // Place the player object in a variable called player
 var player = new Player(27);
-var icky = new Enemy("Icky", 5, 1)
-var sticky = new Enemy("Sticky", 2, 2)
+var icky = new Enemy("Icky", 7, 1)
+var sticky = new Enemy("Sticky", 5, 2)
 var tricky = new Enemy("Tricky", 4, 3)
-var vicky = new Enemy("Vicky", 7, 4)
-var micky = new Enemy("Micky", 10, 5)
-//var nicky = new Enemy("nicky", 10, 1)
-//var ricky = new Enemy("ricky", 3, 3)
-//var picky = new Enemy("picky", 3, 3)
-//var steve = new Enemy("steve", 1, 4)
+var vicky = new Enemy("Vicky", 1, 4)
+var micky = new Enemy("Micky", 6, 5);
+var nicky = new Enemy("Nicky", 9, 6);
+var ricky = new Enemy("Ricky", 8, 7);
+var picky = new Enemy("Picky", 12, 8);
+var steve = new Enemy("Steve", 30, 9);
 
-//var allEnemies = [icky,sticky,tricky,vicky,micky];
-var allEnemies = [icky,sticky,tricky];
-//var allEnemies = [sticky];
-
-
-
+// Initial enemy set on easy mode.
+var allEnemies = [icky,sticky,tricky,vicky];
 
 
 // This listens for key presses and sends the keys to your
