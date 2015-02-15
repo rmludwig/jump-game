@@ -34,7 +34,7 @@ var Enemy = function(name, initialSpeed, stack) {
     // Set initial Random y (lane) value
     this.laneSelection();
 
-    // Logging
+    // Log instantiation
     console.log("Welcoming the enemy "+this.name+" to the game.");
 }
 
@@ -60,7 +60,7 @@ Enemy.prototype.update = function(dt) {
 // should be set for any Enemy
 Enemy.prototype.laneSelection = function(lane) {
     // set a new random lane between 1 and 3
-    this.lane = Math.round((Math.random() * 2) + 1);
+    this.lane = Math.floor((Math.random() * maxLanes) + 1);
     
     // New y is ('lane number' * 'rowHeight') - 'height adjustment' + ('stack adjustment')
     this.y = (this.lane * rowHeight) - 35 + (this.stack * stackHeight);
@@ -77,17 +77,17 @@ Enemy.prototype.render = function() {
 // Reset the enemy to its initial speed after game restart
 Enemy.prototype.reset = function() {
     this.speed = this.initialSpeed;
+
+    // DEBUG level 1
+    if(debug > 0){console.log("Enemy "+this.name+" was reset to start values")};
 }
+
 
 
 // Now write your own player class
 // This class requires an update(), render() and
 // a handleInput() method.
 var Player = function(loc){
-    // Image for this player
-    this.sprite = 'images/char-boy.png';
-    //this.sprite = 'images/enemy-bug.png';
-
     // Starting location
     this.loc = loc;
 
@@ -97,12 +97,13 @@ var Player = function(loc){
     // Initialize game flow values like score and such
     this.reset();
 
-    // log instatiation
+    // Log instatiation
     console.log("Welcoming a new player to the game.");
 };
 
 // Update player and handle mechanics of collisions, lives
-// and difficulty. 
+// and difficulty. Player attributes are the ones that 
+// control the flow and function of the game play. 
 Player.prototype.update = function(){
     // Collision detection
     // Is there a bug on you?
@@ -114,12 +115,18 @@ Player.prototype.update = function(){
             // Put player out of bounds, then next move will bring them to start position
             player.loc = 32;
             
-            // decrease lives and manage game over
+            // decrease lives 
             player.lives--;
+
+            // Is the game over? (out of lives)
             if (player.lives < 0) {
-                // Set back to 0 for render (so not -1 on display)
-                player.lives = 0
                 player.message = "GAME OVER";
+
+                // Temporarily set lives back to 0 so when rendered -1 is not seen
+                player.lives = 0;
+
+                // Log GAME OVER
+                console.log(player.message)
             }
             else {
                 player.message = "Try again";
@@ -130,8 +137,8 @@ Player.prototype.update = function(){
         }
     });
 
-    // Manage score update and next level start
     // Did the player score?
+    // Manage level and difficulty increases 
     if (this.loc < 5) {
         this.loc = 27;
         this.moveTo(this.loc);
@@ -146,7 +153,7 @@ Player.prototype.update = function(){
             allEnemies.push(micky,nicky);
             this.message = "Pink Levels";
             this.sprite = 'images/char-pink-girl.png';
-            console.log("Difficulty 2");
+            console.log("Difficulty Pink");
         }
         else if (this.level === 10) {
             tricky.reset();
@@ -154,7 +161,7 @@ Player.prototype.update = function(){
             allEnemies.push(ricky);
             this.message = "Kitty Levels";
             this.sprite = 'images/char-cat-girl.png';
-            console.log("Difficulty 2");
+            console.log("Difficulty Kitty");
         }
         else if (this.level === 15) {
             tricky.reset();
@@ -162,48 +169,75 @@ Player.prototype.update = function(){
             allEnemies.push(picky);
             this.message = "Mage Levels";
             this.sprite = 'images/char-horn-girl.png';
-            console.log("Difficulty 4");
+            console.log("Difficulty Mage");
         }
         // Boss levels
         else if (this.level === 20) {
             tricky.reset();
             picky.speed = picky.speed + 5;
             allEnemies.push(steve);
-            this.message = "Royalty Levels";
+            this.message = "Boss Levels";
             this.sprite = 'images/char-princess-girl.png';
-            console.log("Difficulty BOSS LEVEL");
+            console.log("Difficulty BOSS LEVELS");
         }
         else {
             // Minor difficulty increase for each level.
             tricky.speed = tricky.speed + 2;
+            // Medium difficulty increase higher levels.
+            if (this.level > 15) {
+                ricky.speed = ricky.speed + 3;
+            }
             // Major difficulty increase for boss levels.
             if (this.level >= 20) {
                 steve.speed = steve.speed + 5;
+            }
+            // CRAZY LEVELS.
+            if (this.level >= 25) {
+                allEnemies.forEach(function(enemy) {
+                    enemy.speed++;
+                });
+                // Incase someone gets this far. Making the game even crazier
+                // With a fourth lane of enemies IN THE GRASS.
+                maxLanes = 4;
             }
         }
     }
 };
 
-// Rest the player after game restart
+// Reset the player after game restart
 Player.prototype.reset = function(){
-    this.message = "Jump in WATER";
+    // Initial image for this player
+    this.sprite = 'images/char-boy.png';
+
+    // Start of game attributes
+    this.message = "Jump to WATER";
     this.score = 0;
     this.level = 1;
     this.lives = 3
+
+    // Reset the globals I modified for CRAZY levels
+    // No more enemies in the grass.
+    maxLanes = 3;
+
+    // Log new game
+    console.log("Player was reset.")
 }
 
+// Move a player to a new position on game board
 Player.prototype.moveTo = function(loc){
+    // Calculate the row and column based on location value
     this.row = Math.floor(loc / 5);
     this.column = loc - (this.row * 5);
+
+    // Calculate x and y subtracting image width adjustment from y.
     this.y = (83 * this.row) - 20;
     this.x = 101 * this.column;
-    //this.x = 202;
-    //this.y = 302;
 
+    // DEBUG level 1
     if(debug > 0){console.log("For player moveTo changed values to row="+this.row+" loc="+this.loc+" x="+this.x+" y="+this.y)};
 };
 
-// Along with play render also render player messages.
+// Along with player render also render player messages.
 Player.prototype.render = function(){
     // Render the image on the canvas
     ctx.drawImage(Resources.get(this.sprite), this.x, this.y);
@@ -211,10 +245,11 @@ Player.prototype.render = function(){
     // Render the player score and lives always
     ctx.strokeStyle = "#000";
     ctx.fillStyle = "#FFF";
-    ctx.font = "bold 10pt Comic Sans MS";
+    ctx.font = "bold 10pt Courier New";
     ctx.textAlign = "left";
-    ctx.fillText("Score:"+this.score, 10, 70);
-    ctx.fillText("Lives: "+this.lives, 10, 90);
+    ctx.fillText("Score: "+this.score, 10, 70);
+    ctx.fillText("Lives: "+this.lives, 111, 70);
+    ctx.fillText("Level: "+this.level, 414, 70);
 
     // Render the player message on the canvas as needed
     if (this.message.match(/\w/)) {
@@ -236,7 +271,7 @@ Player.prototype.handleInput = function(move){
     freeze = 0;
 
     // Start new game if needed. Or if they cancel leave
-    // paused. This would be better if not using confirm
+    // paused. This would be better if not using JS confirm
     // dialogue. But for now it functions as needed. Maybe
     // for fun later I will create a custom in game dialogue.
     if (player.message === "GAME OVER") {
@@ -253,7 +288,6 @@ Player.prototype.handleInput = function(move){
             player.reset();
         }
     }
-
 
     // Move in requested direction if not moving out of bounds
     if (move === "up" && this.loc > 4) {
@@ -281,30 +315,36 @@ Player.prototype.handleInput = function(move){
     if(debug > 0){console.log("Moving player via handleInput argument "+move+" to new location of "+this.loc)};
 };
 
+// Log some info to console on game load
+console.log("Welcome to Rich's game");
+console.log("Enter debug=1 or debug=2 into console to trigger debugging if desired.")
 
 // Configuration parameters asigned as variables
 var speedMultiple = 20;
 var stackHeight = 3;
 var rowHeight = 83
+var maxLanes = 3;
 var freeze = 0;
 var debug = 0;
-var xStart = -80;
-var xEnd = 650;
+var xStart = -100;
+var xEnd = 550;
 
-// Now instantiate your objects.
-// Place all enemy objects in an array called allEnemies
+// Now instantiate the objects.
 // Place the player object in a variable called player
 var player = new Player(27);
+
+// Bring some enemies into the game.
 var icky = new Enemy("Icky", 7, 1)
-var sticky = new Enemy("Sticky", 5, 2)
+var sticky = new Enemy("Sticky", 3, 2)
 var tricky = new Enemy("Tricky", 4, 3)
 var vicky = new Enemy("Vicky", 1, 4)
 var micky = new Enemy("Micky", 6, 5);
 var nicky = new Enemy("Nicky", 9, 6);
-var ricky = new Enemy("Ricky", 8, 7);
+var ricky = new Enemy("Ricky", 5, 7);
 var picky = new Enemy("Picky", 12, 8);
 var steve = new Enemy("Steve", 30, 9);
 
+// Place all enemy objects in an array called allEnemies
 // Initial enemy set on easy mode.
 var allEnemies = [icky,sticky,tricky,vicky];
 
