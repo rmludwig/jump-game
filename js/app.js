@@ -1,5 +1,5 @@
 // Enemies our player must avoid
-var Enemy = function(name, speed, stack) {
+var Enemy = function(name, initialSpeed, stack) {
     // Variables applied to each of our instances go here,
     // we've provided one for you to get started
 
@@ -18,8 +18,11 @@ var Enemy = function(name, speed, stack) {
         this.sprite = 'images/enemy-bug.png';
     }
 
+    // Initial speed variable for this enemy
+    this.initialSpeed = initialSpeed;
+
     // Speed variable for this Enemy
-    this.speed = speed;
+    this.speed = this.initialSpeed;
 
     // Set stack order. This allowes nicer apperance when bugs ovelap.
     // The goal is to have the "front" bug lower on the screen in the lane.
@@ -71,12 +74,18 @@ Enemy.prototype.render = function() {
     ctx.drawImage(Resources.get(this.sprite), this.x, this.y);
 }
 
+// Reset the enemy to its initial speed after game restart
+Enemy.prototype.reset = function() {
+    this.speed = this.initialSpeed;
+}
+
+
 // Now write your own player class
 // This class requires an update(), render() and
 // a handleInput() method.
 var Player = function(loc){
     // Image for this player
-    this.sprite = 'images/char-cat-girl.png';
+    this.sprite = 'images/char-boy.png';
     //this.sprite = 'images/enemy-bug.png';
 
     // Starting location
@@ -85,11 +94,8 @@ var Player = function(loc){
     // Set the initial coordinates of x and y based on locaiton
     this.moveTo(loc);
 
-    // Initial game flow values
-    this.message = "Jump in WATER";
-    this.score = 0;
-    this.level = 1;
-    this.lives = 3
+    // Initialize game flow values like score and such
+    this.reset();
 
     // log instatiation
     console.log("Welcoming a new player to the game.");
@@ -101,7 +107,6 @@ Player.prototype.update = function(){
     // Collision detection
     // Is there a bug on you?
     allEnemies.forEach(function(enemy) {
-        //if (enemy.loc === player.loc || ((enemy.loc - 1) === player.loc && enemy.x < (player.x + 80))) {
         if (enemy.lane === player.row && (enemy.x + 78) > player.x && enemy.x < (player.x + 80)) {
             // Log the collision
             console.log("THE BUG "+enemy.name+" GOT THE PLAYER at loc="+player.loc+"!!!");
@@ -112,6 +117,7 @@ Player.prototype.update = function(){
             // decrease lives and manage game over
             player.lives--;
             if (player.lives < 0) {
+                // Set back to 0 for render (so not -1 on display)
                 player.lives = 0
                 player.message = "GAME OVER";
             }
@@ -124,7 +130,8 @@ Player.prototype.update = function(){
         }
     });
 
-    // Did the player win?
+    // Manage score update and next level start
+    // Did the player score?
     if (this.loc < 5) {
         this.loc = 27;
         this.moveTo(this.loc);
@@ -135,29 +142,55 @@ Player.prototype.update = function(){
 
         // Difficulty increased based on player level
         if (this.level === 5) {
+            tricky.reset();
             allEnemies.push(micky,nicky);
+            this.message = "Pink Levels";
+            this.sprite = 'images/char-pink-girl.png';
             console.log("Difficulty 2");
         }
         else if (this.level === 10) {
+            tricky.reset();
             sticky.speed = sticky.speed + 5;
             allEnemies.push(ricky);
+            this.message = "Kitty Levels";
+            this.sprite = 'images/char-cat-girl.png';
             console.log("Difficulty 2");
         }
         else if (this.level === 15) {
+            tricky.reset();
             nicky.speed = nicky.speed + 5;
             allEnemies.push(picky);
+            this.message = "Mage Levels";
+            this.sprite = 'images/char-horn-girl.png';
             console.log("Difficulty 4");
         }
-        // Boss level
+        // Boss levels
         else if (this.level === 20) {
+            tricky.reset();
             picky.speed = picky.speed + 5;
             allEnemies.push(steve);
+            this.message = "Royalty Levels";
+            this.sprite = 'images/char-princess-girl.png';
             console.log("Difficulty BOSS LEVEL");
         }
+        else {
+            // Minor difficulty increase for each level.
+            tricky.speed = tricky.speed + 2;
+            // Major difficulty increase for boss levels.
+            if (this.level >= 20) {
+                steve.speed = steve.speed + 5;
+            }
+        }
     }
-
 };
 
+// Rest the player after game restart
+Player.prototype.reset = function(){
+    this.message = "Jump in WATER";
+    this.score = 0;
+    this.level = 1;
+    this.lives = 3
+}
 
 Player.prototype.moveTo = function(loc){
     this.row = Math.floor(loc / 5);
@@ -169,6 +202,7 @@ Player.prototype.moveTo = function(loc){
 
     if(debug > 0){console.log("For player moveTo changed values to row="+this.row+" loc="+this.loc+" x="+this.x+" y="+this.y)};
 };
+
 // Along with play render also render player messages.
 Player.prototype.render = function(){
     // Render the image on the canvas
@@ -194,6 +228,9 @@ Player.prototype.render = function(){
     // DEBUG logging level 2 or higher
     if(debug > 1){console.log("Calling player render")};
 };
+
+
+
 Player.prototype.handleInput = function(move){
     // Unfreeze the game on player input.
     freeze = 0;
@@ -203,12 +240,17 @@ Player.prototype.handleInput = function(move){
     // dialogue. But for now it functions as needed. Maybe
     // for fun later I will create a custom in game dialogue.
     if (player.message === "GAME OVER") {
-        player.score = 0;
-        player.level = 1;
         var newGame = confirm("Do you want to start a new game?");
         if (newGame !== true) {
             freeze = 1;
             return;
+        }
+        else {
+            allEnemies = [icky,sticky,tricky,vicky];
+            allEnemies.forEach(function(enemy) {
+                enemy.reset();
+            });
+            player.reset();
         }
     }
 
