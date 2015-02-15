@@ -1,2 +1,10 @@
-# jump-game
-This is the Nano degree project 3 arcade game project. I took the basic requirements and expanded on them. Silly and fun.
+frontend-nanodegree-arcade-game
+
+===============================
+
+
+Students should use this rubric: 
+  https://www.udacity.com/course/viewer#!/c-ud015/l-3072058665/m-3072588797
+
+
+for self-checking their submission.
