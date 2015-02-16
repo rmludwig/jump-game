@@ -150,13 +150,16 @@ var Engine = (function(global) {
      * on your enemy and player entities within app.js
      */
     function renderEntities() {
+        // Added PowerUp render so the player could interact with some
+        // fun and entertaining powerups. - Rich
+        powerUp.render();
+
         /* Loop through all of the objects within the allEnemies array and call
          * the render function you have defined.
          */
         allEnemies.forEach(function(enemy) {
             enemy.render();
         });
-
         player.render();
     }
 
@@ -172,6 +175,8 @@ var Engine = (function(global) {
      * draw our game level. Then set init as the callback method, so that when
      * all of these images are properly loaded our game will start.
      */
+    // Modified and added new resources as needed to support all the fun
+    // changes I made to the basic game. - Rich
     Resources.load([
         'images/stone-block.png',
         'images/water-block.png',
@@ -183,7 +188,13 @@ var Engine = (function(global) {
         'images/char-horn-girl.png',
         'images/char-pink-girl.png',
         'images/char-princess-girl.png',
-        'images/char-cat-girl.png'
+        'images/char-cat-girl.png',
+        'images/Gem-sm-blue.png',
+        'images/Gem-sm-green.png',
+        'images/Gem-sm-orange.png',
+        'images/Heart-sm.png',
+        'images/Star-sm.png',
+        'images/Key-sm.png'
     ]);
     Resources.onReady(init);
 

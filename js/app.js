@@ -1,5 +1,5 @@
 // Enemies our player must avoid
-var Enemy = function(name, initialSpeed, stack) {
+var Enemy = function(name, initialSpeed, stack, sprite) {
     // Variables applied to each of our instances go here,
     // we've provided one for you to get started
 
@@ -8,15 +8,7 @@ var Enemy = function(name, initialSpeed, stack) {
 
     // The image/sprite for our enemies, this uses
     // a helper we've provided to easily load images
-    if (this.name === "Steve") {
-        this.sprite = 'images/enemy-bug-red.png';
-    }
-    else if (this.name === "Vicky") {
-        this.sprite = 'images/enemy-bug-green.png';
-    }
-    else {
-        this.sprite = 'images/enemy-bug.png';
-    }
+    this.sprite = sprite;
 
     // Initial speed variable for this enemy
     this.initialSpeed = initialSpeed;
@@ -137,25 +129,38 @@ Player.prototype.update = function(){
         }
     });
 
-    // Did the player score?
+    // PowerUp achievments
+    // Did player get a power up in time?
+    if (powerUp.loc === player.loc && powerUp.visible === 1) {
+            powerUp.collectReward();
+    };
+
+    // Did the player reach the goal?
     // Manage level and difficulty increases 
     if (this.loc < 5) {
+        // After goal go to start position, increase game level, and increase score
         this.loc = 27;
         this.moveTo(this.loc);
-        this.score++;
-        this.level++;
-        this.message = "Level "+this.level;
+        this.score = this.score + perLevelScore;
+        currentGameLevel++;
+        this.message = "Level "+currentGameLevel;
         console.log("Player GOAL!!!");
 
+        // Replace powerUps after score
+        powerUp.moveToRandomLoc();
+        powerUp.setRandomPowerUpType();
+
         // Difficulty increased based on player level
-        if (this.level === 5) {
+        if (currentGameLevel === 5) {
+            perLevelScore = 2;
             tricky.reset();
             allEnemies.push(micky,nicky);
             this.message = "Pink Levels";
             this.sprite = 'images/char-pink-girl.png';
             console.log("Difficulty Pink");
         }
-        else if (this.level === 10) {
+        else if (currentGameLevel === 10) {
+            perLevelScore = 3;
             tricky.reset();
             sticky.speed = sticky.speed + 5;
             allEnemies.push(ricky);
@@ -163,7 +168,8 @@ Player.prototype.update = function(){
             this.sprite = 'images/char-cat-girl.png';
             console.log("Difficulty Kitty");
         }
-        else if (this.level === 15) {
+        else if (currentGameLevel === 15) {
+            perLevelScore = 5;
             tricky.reset();
             nicky.speed = nicky.speed + 5;
             allEnemies.push(picky);
@@ -172,7 +178,8 @@ Player.prototype.update = function(){
             console.log("Difficulty Mage");
         }
         // Boss levels
-        else if (this.level === 20) {
+        else if (currentGameLevel === 20) {
+            perLevelScore = 10;
             tricky.reset();
             picky.speed = picky.speed + 5;
             allEnemies.push(steve);
@@ -184,15 +191,15 @@ Player.prototype.update = function(){
             // Minor difficulty increase for each level.
             tricky.speed = tricky.speed + 2;
             // Medium difficulty increase higher levels.
-            if (this.level > 15) {
+            if (currentGameLevel > 15) {
                 ricky.speed = ricky.speed + 3;
             }
             // Major difficulty increase for boss levels.
-            if (this.level >= 20) {
+            if (currentGameLevel >= 20) {
                 steve.speed = steve.speed + 5;
             }
             // CRAZY LEVELS.
-            if (this.level >= 25) {
+            if (currentGameLevel >= 25) {
                 allEnemies.forEach(function(enemy) {
                     enemy.speed++;
                 });
@@ -212,10 +219,15 @@ Player.prototype.reset = function(){
     // Start of game attributes
     this.message = "Jump to WATER";
     this.score = 0;
-    this.level = 1;
-    this.lives = 3
+    this.lives = 3;
 
-    // Reset the globals I modified for CRAZY levels
+    // Reset global game level
+    currentGameLevel = startingGameLevel;
+
+    // Reset global per level score
+    perLevelScore = initialPerLevelScore;
+
+    // Reset the global I modified for CRAZY levels
     // No more enemies in the grass.
     maxLanes = 3;
 
@@ -249,7 +261,7 @@ Player.prototype.render = function(){
     ctx.textAlign = "left";
     ctx.fillText("Score: "+this.score, 10, 70);
     ctx.fillText("Lives: "+this.lives, 111, 70);
-    ctx.fillText("Level: "+this.level, 414, 70);
+    ctx.fillText("Level: "+currentGameLevel, 414, 70);
 
     // Render the player message on the canvas as needed
     if (this.message.match(/\w/)) {
@@ -264,8 +276,10 @@ Player.prototype.render = function(){
     if(debug > 1){console.log("Calling player render")};
 };
 
-
-
+// As key strokes occure they will be processed against the 
+// Player object in this function. Those movements will
+// change the location of the player. Also these inputs 
+// will be used to start the game again after GAME OVER.
 Player.prototype.handleInput = function(move){
     // Unfreeze the game on player input.
     freeze = 0;
@@ -286,6 +300,7 @@ Player.prototype.handleInput = function(move){
                 enemy.reset();
             });
             player.reset();
+            powerUp.reset();
         }
     }
 
@@ -315,11 +330,218 @@ Player.prototype.handleInput = function(move){
     if(debug > 0){console.log("Moving player via handleInput argument "+move+" to new location of "+this.loc)};
 };
 
+
+// This is the class for power up objects. They will not
+// move but will will have a variety of other behaviors.
+// There will be one powr up per level.
+var PowerUp = function(type){
+    // Initialize all values via reset
+    this.reset();
+
+    // DEBUG level 1 log instatiation
+    if(debug > 0){console.log("Added the PowerUp")};
+};
+
+// Reset the player after game restart
+PowerUp.prototype.reset = function(){
+    // Initial timeout value
+    this.seconds = initialPowerUpSeconds;
+
+    // Set initial values, these will change to new random
+    // values as the object cycles through the game.
+    this.moveToRandomLoc();
+    this.setRandomPowerUpType();
+
+    // Set special star BONUS values
+    this.resetStar();
+
+    // DEBUG level 1 when reset
+    if(debug > 0){console.log("PowerUp was reset.")};
+}
+
+// Because star bonus's have special characteristics this 
+// is needed to reset the star bonus after timeout or
+// when all PowerUp's are reset.
+PowerUp.prototype.resetStar = function(){
+    // Initial star count and score for special star bonus
+    this.starCount = 5;
+    this.starScore = 1;
+
+    // Initialize seconds to proper value if this was
+    // not a full PowerUp reset. Like on star timeout.
+    if (this.seconds !== initialPowerUpSeconds) {
+        this.seconds = initialPowerUpSeconds - currentGameLevel | 3;
+    }
+
+    // DEBUG level 1 when star was reset
+    if(debug > 0){console.log("PowerUp STAR was reset.")};
+}
+
+// Set a PowerUps random location outside of water and player start
+PowerUp.prototype.moveToRandomLoc = function(){
+    // Since this is being moved let's make it visible
+    this.visible = 1;
+
+    // Generate random location
+    this.loc = Math.floor((Math.random() * 25) + 5);
+
+    // Prevent players position from being new location.
+    if (this.loc === 27) {
+        this.loc = 25;
+    }
+
+    // Calculate the row and column based on location value
+    this.row = Math.floor(this.loc / 5);
+    this.column = this.loc - (this.row * 5);
+
+    // Calculate x and y subtracting image width adjustment from y.
+    this.y = (83 * this.row) - 20;
+    this.x = 101 * this.column;
+
+    // Each time this is called decrease the timeout until it is 1 second
+    if (this.seconds > 3) {
+        this.seconds--;
+    }
+    else {
+        this.seconds = 3;
+    }
+
+    // Set the timeout time.
+    var now = Date.now();
+    this.timeout = now + (this.seconds * 1000);
+
+    // DEBUG level 1
+    if(debug > 0){console.log("For PowerUp the moveTo function changed values to seconds="+this.seconds+" row="+this.row+" loc="+this.loc+" x="+this.x+" y="+this.y)};
+};
+
+// Set a PowerUp type randomly
+PowerUp.prototype.setRandomPowerUpType = function(){
+    // Generate random type
+    this.type = Math.floor((Math.random() * 10) + 1);
+
+    // PowerUp sprites based in their type number
+    if (this.type > 0 && this.type < 5) {
+        this.sprite = 'images/Gem-sm-blue.png';
+    }
+    else if (this.type > 4 && this.type < 7) {
+        this.sprite = 'images/Gem-sm-green.png';
+    }
+    else if (this.type === 7) {
+        this.sprite = 'images/Gem-sm-orange.png';
+    }
+    else if (this.type === 8) {
+        this.sprite = 'images/Heart-sm.png';
+    }
+    else if (this.type === 9) {
+        this.sprite = 'images/Star-sm.png';
+    }
+    else if (this.type === 10) {
+        this.sprite = 'images/Key-sm.png';
+    }
+
+    // DEBUG level 1
+    if(debug > 0){console.log("New powerup type set to "+this.type)};
+};
+
+// Along with player render also render player messages.
+PowerUp.prototype.render = function(){
+    // Render the image on the canvas
+    // ONLY if it is currelty visible.
+    if (this.visible === 1) {
+
+        // Manage the timeout here. If timed out set to invisible
+        // and reset the star bonus PowerUp.
+        var now = Date.now();
+        if (this.timeout > now) {
+            ctx.drawImage(Resources.get(this.sprite), this.x, this.y);
+
+            // DEBUG logging level 2 or higher
+            if(debug > 1){console.log("Calling powerUp render")};
+        }
+        else {
+            this.visible = 0;
+            this.resetStar();
+        }
+    }
+};
+
+// Along with player render also render player messages.
+PowerUp.prototype.collectReward = function(){
+    // Once player reaches power up it dissapears
+    this.visible = 0;
+
+    // Provide different behavior for different types
+    // Blue (type 1 - 4) 1 point.
+    if (this.type > 0 && this.type < 5) {
+        player.message = "BONUS";
+        player.score++;
+        if(debug > 0){console.log("One point bonus")};
+    }
+    // Green (type 5 and 6) 2 points.
+    else if (this.type > 4 && this.type < 7) {
+        player.message = "2 x BONUS";
+        player.score = player.score + 2;
+        if(debug > 0){console.log("Two point bonus")};
+    }
+    // Orange (type 7) 5 points.
+    else if (this.type === 7) {
+        player.message = "5 x BONUS";
+        player.score = player.score + 5;
+        if(debug > 0){console.log("Five point bonus")};
+    }
+    // Heart is 1 more life
+    else if (this.type === 8) {
+        player.message = "1 UP";
+        player.lives++;
+        if(debug > 0){console.log("Extra life")};
+    }
+    // Star gives you five bonus's. Each one has higher
+    // points and a quicker timeout.
+    else if (this.type === 9) {
+        player.score = player.score + this.starScore;
+
+        // DEBUG level 1 for monitoring star bonus mechanics
+        if(debug > 0){console.log("Star bonus points "+this.starScore+" timeout "+this.seconds+" and count "+this.starCount)};
+        
+        // move new star to location
+        this.moveToRandomLoc();
+        if (this.starCount === 5) {
+            player.message = "STAR POWER";
+            this.starScore++;
+            this.starCount--;
+            this.seconds = 5;
+        }
+        else if (this.starCount < 5 && this.starCount > 0) {
+            this.starScore++;
+            this.starCount--;
+        }
+        else {
+            // End of star bonus
+            this.resetStar();
+            this.visible = 0;
+        }
+    }
+    // Key to next level bonus. If the player gets
+    // the key they skip ahead one level by teleporting
+    // to the water (finish line on current level).
+    // AND they get 5 points too.
+    else if (this.type === 10) {
+        player.score = player.score + 10;
+        player.loc = 2;
+        if(debug > 0){console.log("Teleported to next level")};
+    }
+};
+
+
+
 // Log some info to console on game load
 console.log("Welcome to Rich's game");
 console.log("Enter debug=1 or debug=2 into console to trigger debugging if desired.")
 
 // Configuration parameters asigned as variables
+var initialPowerUpSeconds = 20;
+var initialPerLevelScore = 1;
+var startingGameLevel = 1;
 var speedMultiple = 20;
 var stackHeight = 3;
 var rowHeight = 83
@@ -329,24 +551,31 @@ var debug = 0;
 var xStart = -100;
 var xEnd = 550;
 
+// Starting the game (this will be reset when player is reset)
+var currentGameLevel = startingGameLevel;
+
+// Add some PowerUp for fun.
+var powerUp = new PowerUp();
+
 // Now instantiate the objects.
 // Place the player object in a variable called player
 var player = new Player(27);
 
 // Bring some enemies into the game.
-var icky = new Enemy("Icky", 7, 1)
-var sticky = new Enemy("Sticky", 3, 2)
-var tricky = new Enemy("Tricky", 4, 3)
-var vicky = new Enemy("Vicky", 1, 4)
-var micky = new Enemy("Micky", 6, 5);
-var nicky = new Enemy("Nicky", 9, 6);
-var ricky = new Enemy("Ricky", 5, 7);
-var picky = new Enemy("Picky", 12, 8);
-var steve = new Enemy("Steve", 30, 9);
+var icky = new Enemy("Icky", 7, 1, 'images/enemy-bug.png')
+var sticky = new Enemy("Sticky", 3, 2, 'images/enemy-bug.png')
+var tricky = new Enemy("Tricky", 4, 3, 'images/enemy-bug.png')
+var vicky = new Enemy("Vicky", 1, 4, 'images/enemy-bug-green.png')
+var micky = new Enemy("Micky", 6, 5, 'images/enemy-bug.png');
+var nicky = new Enemy("Nicky", 9, 6, 'images/enemy-bug.png');
+var ricky = new Enemy("Ricky", 5, 7, 'images/enemy-bug.png');
+var picky = new Enemy("Picky", 12, 8, 'images/enemy-bug.png');
+var steve = new Enemy("Steve", 30, 9, 'images/enemy-bug-red.png');
 
 // Place all enemy objects in an array called allEnemies
 // Initial enemy set on easy mode.
 var allEnemies = [icky,sticky,tricky,vicky];
+
 
 
 // This listens for key presses and sends the keys to your
